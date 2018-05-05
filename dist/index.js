@@ -114,6 +114,9 @@ class XMLParser {
                     closingNode = false;
                     let parent = self.currentNode.p;
                     delete self.currentNode.p;
+                    if (self.currentNode.v) {
+                        parent.c[self.currentNode.n] = self.currentNode.v;
+                    }
                     self.currentNode = parent;
                 }
                 if (v === '/' && self.withinField === false && prevChar === '<') {

@@ -22,7 +22,7 @@ const xml = `
 export type EndValue = Node | string | boolean | number;
 
 export interface Node {
-  n: string,
+  n?: string,
   v: string | boolean | number | null,
   c: { [key: string]: Node | EndValue | Array<EndValue> },
   f: { [key: string]: string },
@@ -145,7 +145,7 @@ export class XMLParser {
           
           let newNode = null, x = self.currentNode.c || self.currentNode as any;
           
-          // if (true || fields['list'] || fields['>list'] || !self.currentNode.c) {
+          // if (fields['list'] || fields['>list'] || !self.currentNode.c) {
           //   const a = x[nextNodeName] = x[nextNodeName] || [];
           //   newNode = {p: self.currentNode};
           //   a.push(newNode);
@@ -169,6 +169,9 @@ export class XMLParser {
           closingNode = false;
           let parent = self.currentNode.p;
           delete self.currentNode.p;
+          if (self.currentNode.v) {
+            parent.c[self.currentNode.n] = self.currentNode.v;
+          }
           self.currentNode = parent;
         }
         

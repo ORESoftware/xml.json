@@ -3,7 +3,7 @@ import { Readable } from "stream";
 import EventEmitter = require('events');
 export declare type EndValue = Node | string | boolean | number;
 export interface Node {
-    n: string;
+    n?: string;
     v: string | boolean | number | null;
     c: {
         [key: string]: Node | EndValue | Array<EndValue>;
