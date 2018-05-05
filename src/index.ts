@@ -27,6 +27,13 @@ export class Node {
     
     // get / set with the define prop
     
+    Object.defineProperty(this, symbols.value, {
+      value: name,
+      writable: true,
+      enumerable: false,
+      configurable: true
+    });
+    
     Object.defineProperty(this, symbols.fields, {
       value: {},
       writable: true,
@@ -36,13 +43,6 @@ export class Node {
     
     Object.defineProperty(this, symbols.parent, {
       value: parent,
-      writable: true,
-      enumerable: false,
-      configurable: true
-    });
-    
-    Object.defineProperty(this, symbols.name, {
-      value: name,
       writable: true,
       enumerable: false,
       configurable: true
@@ -75,7 +75,12 @@ export class Node {
     delete this[symbols.fields];
     delete this[symbols.parent];
     delete this[symbols.name];
+    delete this[symbols.value];
     return this;
+  }
+  
+  toJSON(){
+    return this[symbols.value] || this;
   }
   
   // toString(): string {
@@ -114,7 +119,7 @@ export class XMLParser {
     
     this.reader.once('end', function () {
       console.log('reading has ended.');
-      // console.log(self.inspectValue());
+      console.log(self.inspectValue());
       self.emitter.emit('result', self.jsResult.root);
     });
     
@@ -196,7 +201,22 @@ export class XMLParser {
           
           let newNode = self.getNewNode(self.currentNode, nextNodeName);
           newNode[symbols.fields] = fields;
-          self.currentNode[nextNodeName] = newNode;
+          
+          const x = self.currentNode[nextNodeName];
+          
+          console.log('xxx:', x);
+          
+          if (Array.isArray(x)) {
+            x.push(newNode);
+          }
+          else if (x) {
+            self.currentNode[nextNodeName] = [x, newNode];
+          }
+          else {
+            self.currentNode[nextNodeName] = newNode;
+          }
+          
+          // console.log('newNode parent:', newNode[symbols.parent][symbols.name]);
           
           // const a = self.currentNode.c[nextNodeName] = self.currentNode.c[nextNodeName] || [];
           // newNode = {p: self.currentNode, c: {}, n: nextNodeName, v:[]};
@@ -206,7 +226,7 @@ export class XMLParser {
           
           nextNodeName = '';
           self.currentNode = newNode;
-          // console.log('current node name is:', self.currentNode.n);
+          console.log('new current node name is:', self.currentNode[symbols.name]);
           debugger;
         }
         
@@ -218,8 +238,9 @@ export class XMLParser {
           
           if (self.currentNode[symbols.value] &&
             Object.keys(self.currentNode[symbols.fields]).length < 1 &&
-            Object.keys(self.currentNode).length < 4) {
-            parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
+            Object.keys(self.currentNode).length < 1) {
+            self.currentNode = self.currentNode[symbols.value]
+            // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
           }
           self.currentNode = parent;
         }
@@ -252,7 +273,7 @@ export class XMLParser {
     Object.keys(v).forEach(function (k) {
       console.log('the key:', k);
       console.log(v[k]);
-      // self.internalPrint(v[k]);
+      self.internalPrint(v[k]);
     });
   }
   
