@@ -1,0 +1,13 @@
+<store>
+    <a>567</a>
+    <books list="uuu">
+        <zoo mmm="zzz">123</zoo>
+        <zoo mmm="zzz">1234</zoo>
+        <zoo mmm="zzz">12345</zoo>
+    </books>
+    <a>567</a>
+    <yyy list="uuu">
+        <xxx></xxx>
+        <xxx></xxx>
+    </yyy>
+</store>
