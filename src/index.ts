@@ -19,14 +19,44 @@ const xml = `
 </store>
 `;
 
+export const symbols = {
+  fields: Symbol('@xml.js.fields'),
+  name: Symbol('@xml.js.name'),
+  value: Symbol('@xml.js.value'),
+  parent: Symbol('@xml.js.parent'),
+  toString: Symbol('@xml.js.toString')
+};
+
 export type EndValue = Node | string | boolean | number;
 
-export interface Node {
-  n?: string,
-  v: string | boolean | number | null,
-  c: { [key: string]: Node | EndValue | Array<EndValue> },
-  f: { [key: string]: string },
-  p: Node
+export class Node {
+  
+  [key: string]: any;
+  
+  constructor(parent: Node, name: string) {
+    
+    this[symbols.fields] = {} as  { [key: string]: string };
+    this[symbols.parent] = parent;
+    this[symbols.name] = name;
+    
+  }
+  
+  [symbols.toString]() : string{
+    const v = Object.assign({}, this);
+    delete v[symbols.fields];
+    delete v[symbols.parent];
+    delete v[symbols.name];
+    return util.inspect(v);
+  };
+  
+  toString() : string{
+    return this[symbols.toString]();
+  }
+  
+  valueOf(): string {
+    return this[symbols.toString]();
+  }
+  
 }
 
 export class XMLParser {
@@ -34,13 +64,7 @@ export class XMLParser {
   filepath = '';
   rawInput = '';
   jsResult = {
-    root: <Node> {
-      n: 'root',
-      v: null,
-      f: {},
-      p: null as Node,
-      c: {},
-    }
+    root: new Node(null, 'root')
   };
   
   withinField = false;
@@ -123,13 +147,13 @@ export class XMLParser {
         if (prevChar === '<' && v === '/' && self.withinField === false) {
           recordingValue = false;
           // self.currentNode = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
-          self.currentNode.v = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
+          self.currentNode[symbols.value] = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
           nodeValue = '';
         }
         
         if (prevChar === '<' && v !== '/' && self.withinField === false) {
           recordingValue = false;
-          self.currentNode.v = '';
+          self.currentNode[symbols.value] = '';
           nodeValue = '';
           recordingNextNodeName = true;
         }
@@ -143,18 +167,13 @@ export class XMLParser {
           recordingFields = false;
           recordingValue = true;
           
-          let newNode = null, x = self.currentNode.c || self.currentNode as any;
+          let newNode = self.getNewNode(self.currentNode, nextNodeName);
+          newNode[symbols.fields] = fields;
+          self.currentNode[nextNodeName] = newNode;
           
-          // if (fields['list'] || fields['>list'] || !self.currentNode.c) {
-          //   const a = x[nextNodeName] = x[nextNodeName] || [];
-          //   newNode = {p: self.currentNode};
-          //   a.push(newNode);
-          // }
-          // else {
-          newNode = self.getNewNode(nextNodeName);
-          newNode.f = fields;
-          x[nextNodeName] = newNode;
-          // }
+          // const a = self.currentNode.c[nextNodeName] = self.currentNode.c[nextNodeName] || [];
+          // newNode = {p: self.currentNode, c: {}, n: nextNodeName, v:[]};
+          // a.push(newNode);
           
           fields = {};
           
@@ -167,10 +186,13 @@ export class XMLParser {
         if (closingNode === true && v === '>') {
           // console.log('close node is now false');
           closingNode = false;
-          let parent = self.currentNode.p;
-          delete self.currentNode.p;
-          if (self.currentNode.v) {
-            parent.c[self.currentNode.n] = self.currentNode.v;
+          let parent = self.currentNode[symbols.parent];
+          delete self.currentNode[symbols.parent];
+          
+          if (self.currentNode[symbols.value] &&
+            Object.keys(self.currentNode[symbols.fields]).length < 1 &&
+            Object.keys(self.currentNode).length < 4) {
+            parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
           }
           self.currentNode = parent;
         }
@@ -191,6 +213,18 @@ export class XMLParser {
     
   }
   
+  print(){
+    this.internalPrint(this.jsResult.root);
+  }
+  
+  internalPrint(v: Node){
+    const self = this;
+    Object.keys(v).forEach(function (k) {
+        console.log(v[k]);
+        self.internalPrint(v[k]);
+    });
+  }
+  
   inspectValue() {
     return util.inspect(this.jsResult, {depth: 15, maxArrayLength: 50});
   }
@@ -199,25 +233,8 @@ export class XMLParser {
     return '';
   }
   
-  getNewArrayNode(name: string): Node {
-    
-    return {
-      n: name,
-      v: '',
-      p: this.currentNode,
-      f: {},
-      c: {}
-    }
-  }
-  
-  getNewNode(name: string): Node {
-    return {
-      n: name,
-      v: '',
-      p: this.currentNode,
-      f: {},
-      c: {}
-    }
+  getNewNode(parent: Node, name: string): Node {
+    return new Node(parent, name);
   }
   
 }

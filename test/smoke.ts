@@ -8,9 +8,11 @@ const p = new XMLParser(file);
 
 p.emitter.once('result', function(obj: Node){
 
-  console.log('zoo:');
-  console.log(obj.c.store);
   console.log('a:');
-  console.log(obj.c.store);
+  console.log(obj.store.a);
+  console.log('books:');
+  console.log(obj.store.books);
   
 });
+
+
