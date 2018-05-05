@@ -1,7 +1,7 @@
 'use strict';
 
 import * as readline from 'readline';
-import {Readable} from "stream";
+import {Readable, Transform} from "stream";
 import fs = require('fs');
 import * as path from "path";
 import * as util from "util";
@@ -9,19 +9,36 @@ import EventEmitter = require('events');
 
 /////////////////////////////////////////////////////////////////////////////////
 
-export const symbols = {
-  fields: Symbol('@xml.js.fields'),
-  name: Symbol('@xml.js.name'),
-  value: Symbol('@xml.js.value'),
-  parent: Symbol('@xml.js.parent'),
-  toString: Symbol('@xml.js.toString')
-};
+// export const symbols = {
+//   fields: Symbol('@xml.js.fields'),
+//   name: Symbol('@xml.js.name'),
+//   value: Symbol('@xml.js.value'),
+//   parent: Symbol('@xml.js.parent'),
+//   toString: Symbol('@xml.js.toString')
+// };
+
+export namespace symbols {
+  export const toString = Symbol('@xml.js.toString');
+  export const fields = Symbol('@xml.js.fields');
+  export const name = Symbol('@xml.js.name');
+  export const value = Symbol('@xml.js.value');
+  export const parent = Symbol('@xml.js.parent');
+}
+
+export interface Fields {
+  [key: string]: string
+}
 
 export type EndValue = Node | string | boolean | number;
 
 export class Node {
   
   [key: string]: any;
+  
+  [symbols.value]: any;
+  [symbols.fields]: Fields;
+  [symbols.parent]: Node;
+  [symbols.name]: string;
   
   constructor(parent: Node, name: string) {
     
@@ -55,21 +72,7 @@ export class Node {
       configurable: true
     });
     
-    // this[symbols.fields] = {} as  { [key: string]: string };
-    // this[symbols.parent] = parent;
-    // this[symbols.name] = name;
-    
   }
-  
-  // [symbols.toString](): string {
-  // const v = Object.assign({}, this);
-  // delete this[symbols.fields];
-  // delete this[symbols.parent];
-  // delete this[symbols.name];
-  // return util.inspect(this);
-  // return util.inspect(v);
-  
-  // };
   
   viewString() {
     delete this[symbols.fields];
@@ -81,18 +84,18 @@ export class Node {
   
   toJSON() {
     
-    if(this[symbols.value]){
+    if (this[symbols.value]) {
       return this[symbols.value];
     }
     
     const v = {} as any;
     const self = this;
-
-    Object.keys(this).forEach(function(k){
+    
+    Object.keys(this).forEach(function (k) {
       
       let x = self[k];
       
-      if(x instanceof Map){
+      if (x instanceof Map) {
         x = Array.from(x).map((v => v[1]));
       }
       
@@ -103,17 +106,51 @@ export class Node {
     // return this[symbols.value] || this;
   }
   
-  // toString(): string {
-  //   return this[symbols.toString]();
-  // }
+}
+
+export const getFields = function (v: Node): Fields {
+  return v[symbols.fields];
+};
+
+export const getValue = function (v: Node): any {
+  return v[symbols.value];
+};
+
+export interface XMLParserOpts {
+  file?: string,
+  readable?: Readable,
+  stream?: Readable,
+  key?: string,
+  target?: string  // JS or JSON
+}
+
+export interface MapWithFirst extends Map<Node, Node> {
+  first: Node;
+}
+
+export class XML {
   
-  // valueOf(): string {
-  //   return this[symbols.toString]();
-  // }
+  static parse(v: string | Readable): Transform {
+    if (typeof v === 'string') {
+      return XML.parseFromFile(v);
+    }
+    
+    if (v instanceof Readable) {
+      return XML.parseFromStream(v);
+    }
+  }
+  
+  static parseFromFile(v: string): Transform {
+    return new XMLParser({file: v});
+  }
+  
+  static parseFromStream(r: Readable) {
+    return new XMLParser({stream: r});
+  }
   
 }
 
-export class XMLParser {
+export class XMLParser extends Transform {
   
   filepath = '';
   rawInput = '';
@@ -121,16 +158,25 @@ export class XMLParser {
     root: new Node(null, 'root')
   };
   
+  file = '';
   withinField = false;
   currentNode: Node;
   reader: Readable;
   emitter = new EventEmitter();
+  key = '';
   
-  constructor(file: string) {
+  constructor(opts: XMLParserOpts) {
+    
+    super();
+    
+    const file = this.file = opts.file || '';
+    this.key = opts.key || '';
     
     if (!path.isAbsolute(file)) {
       throw new Error('xml file path must be absolute.')
     }
+    
+    // this.reader could be user passed or just `this` itself
     
     this.reader = fs.createReadStream(file, 'utf8');
     this.currentNode = this.jsResult.root;
@@ -138,8 +184,12 @@ export class XMLParser {
     
     this.reader.once('end', function () {
       console.log('reading has ended.');
-      console.log(self.inspectValue());
-      self.emitter.emit('result', self.jsResult.root);
+      setImmediate(function () {
+        // console.log('inspection:',self.inspectValue());
+        self.emitter.emit('result', self.jsResult.root);
+        self.emit('result', self.jsResult.root);
+      });
+      
     });
     
     let dataCount = 0;
@@ -230,7 +280,7 @@ export class XMLParser {
             x.set(newNode, newNode);
           }
           else if (x) {
-            let m = new Map();
+            let m = new Map() as MapWithFirst;
             m.first = x;
             m.set(x, x);
             m.set(newNode, newNode);
@@ -281,6 +331,10 @@ export class XMLParser {
               z.set(self.currentNode, self.currentNode[symbols.value] || self.currentNode);
             }
             // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
+          }
+          
+          if (self.key === self.currentNode[symbols.name]) {
+            self.emit('jschunk', self.currentNode);
           }
           
           self.currentNode = parent;
