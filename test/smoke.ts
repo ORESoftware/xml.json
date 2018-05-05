@@ -13,7 +13,7 @@ p.emitter.once('result', function(obj: Node){
   // console.log('books:');
   // console.log(obj.store.books.viewString());
   
-  p.print();
+  // p.print();
   
 });
 

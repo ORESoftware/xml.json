@@ -5,5 +5,4 @@ const dist_1 = require("../dist");
 const file = path.resolve(__dirname + '/assets/foo.xml');
 const p = new dist_1.XMLParser(file);
 p.emitter.once('result', function (obj) {
-    p.print();
 });

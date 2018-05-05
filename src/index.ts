@@ -114,7 +114,7 @@ export class XMLParser {
     
     this.reader.once('end', function () {
       console.log('reading has ended.');
-      // console.log(self.inspectValue());
+      console.log(self.inspectValue());
       self.emitter.emit('result', self.jsResult.root);
     });
     
