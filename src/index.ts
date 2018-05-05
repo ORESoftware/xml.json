@@ -1,7 +1,7 @@
 'use strict';
 
 import * as readline from 'readline';
-import {Readable, Transform} from "stream";
+import {Readable, Transform, TransformOptions} from "stream";
 import fs = require('fs');
 import * as path from "path";
 import * as util from "util";
@@ -165,10 +165,11 @@ export class XMLParser extends Transform {
   emitter = new EventEmitter();
   key = '';
   
-  constructor(opts: XMLParserOpts) {
+  constructor(opts?: XMLParserOpts, to?: TransformOptions) {
     
-    super();
+    super(to || {});
     
+    opts = opts || {} as XMLParserOpts;
     const file = this.file = opts.file || '';
     this.key = opts.key || '';
     
@@ -198,7 +199,7 @@ export class XMLParser extends Transform {
     
     let dataCount = 0;
     
-    reader.on('data', function (d: string ) {
+    reader.on('data', function (d: string) {
       dataCount++;
       console.log('data count:', dataCount);
       self.handleData(d);
@@ -206,7 +207,7 @@ export class XMLParser extends Transform {
     
   }
   
-  _transform(chunk, enc, cb) {
+  _transform(chunk: string, enc: string, cb: Function) {
     this.handleData(chunk);
     cb();
   }
@@ -224,7 +225,7 @@ export class XMLParser extends Transform {
     let fieldValue = '';
     let fields = {} as { [key: string]: string };
     let nodeValue = '';
-    const self = this;
+ 
     
     for (let v of String(d)) {
       
@@ -235,41 +236,41 @@ export class XMLParser extends Transform {
         recordingFields = true;
       }
       
-      if (isWhiteSpace && self.withinField === false) {
+      if (isWhiteSpace && this.withinField === false) {
         if (recordingValue) {
           nodeValue += v;
         }
         continue;
       }
       
-      if (v === '"' && prevChar !== '\\' && self.withinField === false) {
-        self.withinField = true;
+      if (v === '"' && prevChar !== '\\' && this.withinField === false) {
+        this.withinField = true;
       }
-      else if (v === '"' && prevChar !== '\\' && self.withinField === true) {
-        self.withinField = false;
+      else if (v === '"' && prevChar !== '\\' && this.withinField === true) {
+        this.withinField = false;
         fields[fieldName.slice(0, fieldName.length - 1)] = String(fieldValue).slice(1);
         fieldName = '';
         fieldValue = '';
       }
       
-      if (recordingFields && self.withinField === false) {
+      if (recordingFields && this.withinField === false) {
         fieldName += v;
       }
       
-      if (recordingFields && self.withinField === true) {
+      if (recordingFields && this.withinField === true) {
         fieldValue += v;
       }
       
-      if (prevChar === '<' && v === '/' && self.withinField === false) {
+      if (prevChar === '<' && v === '/' && this.withinField === false) {
         recordingValue = false;
-        // self.currentNode = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
-        self.currentNode[symbols.value] = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
+        // this.currentNode = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
+        this.currentNode[symbols.value] = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
         nodeValue = '';
       }
       
-      if (prevChar === '<' && v !== '/' && self.withinField === false) {
+      if (prevChar === '<' && v !== '/' && this.withinField === false) {
         recordingValue = false;
-        self.currentNode[symbols.value] = '';
+        this.currentNode[symbols.value] = '';
         nodeValue = '';
         recordingNextNodeName = true;
       }
@@ -278,16 +279,16 @@ export class XMLParser extends Transform {
         nextNodeName += v;
       }
       
-      if (v === '>' && (recordingFields || recordingNextNodeName) && self.withinField === false) {
+      if (v === '>' && (recordingFields || recordingNextNodeName) && this.withinField === false) {
         
         recordingNextNodeName = false;
         recordingFields = false;
         recordingValue = true;
         
-        let newNode = self.getNewNode(self.currentNode, nextNodeName);
+        let newNode = this.getNewNode(this.currentNode, nextNodeName);
         newNode[symbols.fields] = fields;
         
-        const x = self.currentNode[nextNodeName];
+        const x = this.currentNode[nextNodeName];
         
         // console.log('xxx:', x);
         
@@ -299,63 +300,54 @@ export class XMLParser extends Transform {
           m.first = x;
           m.set(x, x);
           m.set(newNode, newNode);
-          self.currentNode[nextNodeName] = m;
+          this.currentNode[nextNodeName] = m;
         }
         else {
-          self.currentNode[nextNodeName] = newNode
+          this.currentNode[nextNodeName] = newNode
         }
         
         // if (Array.isArray(x)) {
         //   x.push(newNode);
         // }
         // else if (x) {
-        //   self.currentNode[nextNodeName] = [x, newNode];
+        //   this.currentNode[nextNodeName] = [x, newNode];
         // }
         // else {
-        //   self.currentNode[nextNodeName] = newNode;
+        //   this.currentNode[nextNodeName] = newNode;
         // }
-        
-        // console.log('newNode parent:', newNode[symbols.parent][symbols.name]);
-        
-        // const a = self.currentNode.c[nextNodeName] = self.currentNode.c[nextNodeName] || [];
-        // newNode = {p: self.currentNode, c: {}, n: nextNodeName, v:[]};
-        // a.push(newNode);
         
         fields = {};
         
         nextNodeName = '';
-        self.currentNode = newNode;
-        console.log('new current node name is:', self.currentNode[symbols.name]);
-        debugger;
+        this.currentNode = newNode;
       }
       
       if (closingNode === true && v === '>') {
         // console.log('close node is now false');
         closingNode = false;
-        let parent = self.currentNode[symbols.parent];
-        delete self.currentNode[symbols.parent];
+        let parent = this.currentNode[symbols.parent];
+        delete this.currentNode[symbols.parent];
         
-        if (self.currentNode[symbols.value] &&
-          Object.keys(self.currentNode[symbols.fields]).length < 1 &&
-          Object.keys(self.currentNode).length < 1) {
-          // self.currentNode = self.currentNode[symbols.value]
+        if (this.currentNode[symbols.value] &&
+          Object.keys(this.currentNode[symbols.fields]).length < 1 &&
+          Object.keys(this.currentNode).length < 1) {
+          // this.currentNode = this.currentNode[symbols.value]
           
-          let z = parent[self.currentNode[symbols.name]];
+          let z = parent[this.currentNode[symbols.name]];
           if (z instanceof Map) {
             z.set(z.first, z.first[symbols.value] || z.first);
-            z.set(self.currentNode, self.currentNode[symbols.value] || self.currentNode);
+            z.set(this.currentNode, this.currentNode[symbols.value] || this.currentNode);
           }
-          // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
         }
         
-        if (self.key === self.currentNode[symbols.name]) {
-          self.emit('jschunk', self.currentNode);
+        if (this.key === this.currentNode[symbols.name]) {
+          this.emit('jschunk', this.currentNode);
         }
         
-        self.currentNode = parent;
+        this.currentNode = parent;
       }
       
-      if (v === '/' && self.withinField === false && prevChar === '<') {
+      if (v === '/' && this.withinField === false && prevChar === '<') {
         // console.log('close node is now true');
         closingNode = true;
       }
@@ -373,7 +365,7 @@ export class XMLParser extends Transform {
     return this.internalPrint(this.jsResult.root);
   }
   
-  internalPrint(v: Node) {
+  private internalPrint(v: Node) {
     const self = this;
     const keys = Object.keys(v);
     console.log('the keys:', keys);
