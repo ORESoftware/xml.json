@@ -11,7 +11,7 @@ p.emitter.once('result', function(obj: Node){
   console.log('a:');
   console.log(obj.store.a);
   console.log('books:');
-  console.log(obj.store.books);
+  console.log(obj.store.books.valueOf());
   
 });
 

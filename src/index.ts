@@ -41,7 +41,7 @@ export class Node {
     
   }
   
-  [symbols.toString]() : string{
+  [symbols.toString](): string {
     const v = Object.assign({}, this);
     delete v[symbols.fields];
     delete v[symbols.parent];
@@ -49,7 +49,7 @@ export class Node {
     return util.inspect(v);
   };
   
-  toString() : string{
+  toString(): string {
     return this[symbols.toString]();
   }
   
@@ -80,14 +80,12 @@ export class XMLParser {
     }
     
     this.reader = fs.createReadStream(file, 'utf8');
-    
-    const self = this;
-    
     this.currentNode = this.jsResult.root;
+    const self = this;
     
     this.reader.once('end', function () {
       console.log('reading has ended.');
-      console.log(self.inspectValue());
+      // console.log(self.inspectValue());
       self.emitter.emit('result', self.jsResult.root);
     });
     
@@ -213,15 +211,15 @@ export class XMLParser {
     
   }
   
-  print(){
+  print() {
     this.internalPrint(this.jsResult.root);
   }
   
-  internalPrint(v: Node){
+  internalPrint(v: Node) {
     const self = this;
     Object.keys(v).forEach(function (k) {
-        console.log(v[k]);
-        self.internalPrint(v[k]);
+      console.log(v[k]);
+      self.internalPrint(v[k]);
     });
   }
   
