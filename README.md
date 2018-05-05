@@ -1,56 +1,41 @@
 
 
-# Your Project Readme Goes Here
+# Oresoftare / XML.js
 
-This project is used by:
-https://github.com/oresoftware/ts-project
-You can use ts-project to do things more automatically.
+## <i> Stream XML and parse to JavaScript objects </i>
 
-To do things more manually, continue on.
-
-Steps to making this project skeleton your own project base.
-
-1. Clone this repo: <br>
-    `git clone https://github.com/your-org/xml.json.git YOUR-PROJECT-NAME`
-2. Update package.json so that `name` property matches `YOUR-PROJECT-NAME`.
-3. Update other package.json fields so that they are accurate.
-
-To check to see if `YOUR-PROJECT-NAME` is available on NPM, uses this command at the command line:
-
-`$ npm view YOUR-PROJECT-NAME`  # will give you a 404 if the name is available.
+#### Read from a file, or use a readable stream.
 
 
-### This project skeleton uses:
+```javascript
 
-* the correct semver initial value (npm init defaults to 1.0.0 which is just wrong).
-* typescript 2.x
-* nodejs version 9
-* travis (for automated testing of your library)
-* MIT license
-* good simple default settings for .gitignore / .npmignore / .editorconfig / .gitattributes
+import {XMLParser} from '@oresoftware/xml.js'
 
+fs.createReadStream(file).pipe(new XMLParser()).once('result', function(result){
+     // your XML is now a JS object
+});
 
-
-To compile your *.ts files to a dist directory (keeps your source and target files separate),
-<br>
-simply add this to tsconfig.json:
-
-
-```json
-"compilerOptions": {
-    "outDir": "dist"
-}
 ```
 
-and
+### Now if you want to stream chunks of JS objects
 
-```json
- "include": [
-    "src"
-  ]
+```javascript
+
+fs.createReadStream(file).pipe(new XMLParser({key: 'foobar'})).on('jschunk', function(c){
+     // represents a Node instance in your data
+});
+
 ```
 
-For small libraries with a couple of files, I find that using a dist folder (target directory) is more trouble
-than it's worth. For projects with just one .ts/.js file, you can just get rid of the lib folder, and put your index.ts
-file in the root of the project. In that case, make sure to change the `main` property in package.json from 'lib/index.js' to
-'index.js'. Same with the `typings/types` properties.
+### Just pass in a file path:
+
+The library will create a read stream for you.
+
+```javascript
+
+new XMLParser({file}).once('result', function(c){
+     // c represents a Node instance in your data
+});
+
+```
+
