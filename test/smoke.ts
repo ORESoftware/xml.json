@@ -13,7 +13,7 @@ p.emitter.once('result', function (obj: Node) {
   // console.log('books:');
   
   obj.store.books.zoo.forEach(function (v: any) {
-    console.log('agage:', v[symbols.value]);
+    console.log('agage:', v);
   });
   
   console.log('foop:', JSON.stringify(obj));

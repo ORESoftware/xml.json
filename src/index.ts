@@ -80,7 +80,27 @@ export class Node {
   }
   
   toJSON() {
-    return this[symbols.value] || this;
+    
+    if(this[symbols.value]){
+      return this[symbols.value];
+    }
+    
+    const v = {} as any;
+    const self = this;
+
+    Object.keys(this).forEach(function(k){
+      
+      let x = self[k];
+      
+      if(x instanceof Map){
+        x = Array.from(x).map((v => v[1]));
+      }
+      
+      v[k] = x;
+    });
+    
+    return v;
+    // return this[symbols.value] || this;
   }
   
   // toString(): string {
@@ -195,6 +215,7 @@ export class XMLParser {
         }
         
         if (v === '>' && (recordingFields || recordingNextNodeName) && self.withinField === false) {
+          
           recordingNextNodeName = false;
           recordingFields = false;
           recordingValue = true;
@@ -206,28 +227,29 @@ export class XMLParser {
           
           // console.log('xxx:', x);
           
-          // if (x instanceof Map) {
-          //   x.set(newNode, newNode);
-          // }
-          // else if (x) {
-          //   let m = new Map();
-          //   m.set(x, x);
-          //   m.set(newNode, newNode);
-          //   self.currentNode[nextNodeName] = m;
-          // }
-          // else {
-          //   self.currentNode[nextNodeName] = newNode
-          // }
-          
-          if (Array.isArray(x)) {
-            x.push(newNode);
+          if (x instanceof Map) {
+            x.set(newNode, newNode);
           }
           else if (x) {
-            self.currentNode[nextNodeName] = [x, newNode];
+            let m = new Map();
+            m.first = x;
+            m.set(x, x);
+            m.set(newNode, newNode);
+            self.currentNode[nextNodeName] = m;
           }
           else {
-            self.currentNode[nextNodeName] = newNode;
+            self.currentNode[nextNodeName] = newNode
           }
+          
+          // if (Array.isArray(x)) {
+          //   x.push(newNode);
+          // }
+          // else if (x) {
+          //   self.currentNode[nextNodeName] = [x, newNode];
+          // }
+          // else {
+          //   self.currentNode[nextNodeName] = newNode;
+          // }
           
           // console.log('newNode parent:', newNode[symbols.parent][symbols.name]);
           
@@ -252,9 +274,16 @@ export class XMLParser {
           if (self.currentNode[symbols.value] &&
             Object.keys(self.currentNode[symbols.fields]).length < 1 &&
             Object.keys(self.currentNode).length < 1) {
-            self.currentNode = self.currentNode[symbols.value]
+            // self.currentNode = self.currentNode[symbols.value]
+            
+            let z = parent[self.currentNode[symbols.name]];
+            if (z instanceof Map) {
+              z.set(z.first, z.first[symbols.value]);
+              z.set(self.currentNode, self.currentNode[symbols.value]);
+            }
             // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
           }
+          
           self.currentNode = parent;
         }
         
