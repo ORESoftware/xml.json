@@ -5,6 +5,11 @@
         <zoo>56</zoo>
         <zoo>78</zoo>
     </books>
-    <truck>a</truck>
+    <truck>
+        <zoo>12</zoo>
+        <zoo>34</zoo>
+        <zoo>56</zoo>
+        <zoo>78</zoo>
+    </truck>
     <lck>b</lck>
 </store>

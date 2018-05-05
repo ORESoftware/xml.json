@@ -79,7 +79,7 @@ export class Node {
     return this;
   }
   
-  toJSON(){
+  toJSON() {
     return this[symbols.value] || this;
   }
   
@@ -204,7 +204,20 @@ export class XMLParser {
           
           const x = self.currentNode[nextNodeName];
           
-          console.log('xxx:', x);
+          // console.log('xxx:', x);
+          
+          // if (x instanceof Map) {
+          //   x.set(newNode, newNode);
+          // }
+          // else if (x) {
+          //   let m = new Map();
+          //   m.set(x, x);
+          //   m.set(newNode, newNode);
+          //   self.currentNode[nextNodeName] = m;
+          // }
+          // else {
+          //   self.currentNode[nextNodeName] = newNode
+          // }
           
           if (Array.isArray(x)) {
             x.push(newNode);
