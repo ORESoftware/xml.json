@@ -278,8 +278,8 @@ export class XMLParser {
             
             let z = parent[self.currentNode[symbols.name]];
             if (z instanceof Map) {
-              z.set(z.first, z.first[symbols.value]);
-              z.set(self.currentNode, self.currentNode[symbols.value]);
+              z.set(z.first, z.first[symbols.value] || z.first);
+              z.set(self.currentNode, self.currentNode[symbols.value] || self.currentNode);
             }
             // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
           }

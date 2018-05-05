@@ -12,4 +12,33 @@
         <zoo>78</zoo>
     </truck>
     <lck>b</lck>
+
+    <store>
+        <books list="uuu">
+            <zoo>12</zoo>
+            <zoo>34</zoo>
+            <zoo>56</zoo>
+            <zoo>78</zoo>
+        </books>
+        <truck>
+            <zoo>12</zoo>
+            <zoo>34</zoo>
+            <zoo>56</zoo>
+            <zoo>78</zoo>
+        </truck>
+        <lck>b</lck>
+    </store>
+
+    <xzz>
+        <xzz>
+            aaaaa
+        </xzz>
+        <xzz>
+            bbbbb
+        </xzz>
+    </xzz>
+    <xzz>
+        ccccc
+    </xzz>
+
 </store>
