@@ -122,7 +122,6 @@ export class XMLParser {
   };
   
   withinField = false;
-  parentNode: Node;
   currentNode: Node;
   reader: Readable;
   emitter = new EventEmitter();
