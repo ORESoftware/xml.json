@@ -7,11 +7,13 @@ const file = path.resolve(__dirname + '/assets/foo.xml');
 const p = new XMLParser(file);
 
 p.emitter.once('result', function(obj: Node){
-
-  console.log('a:');
-  console.log(obj.store.a);
-  console.log('books:');
-  console.log(obj.store.books.valueOf());
+  //
+  // console.log('a:');
+  // console.log(obj.store.a);
+  // console.log('books:');
+  // console.log(obj.store.books.viewString());
+  
+  p.print();
   
 });
 

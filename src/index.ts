@@ -7,17 +7,7 @@ import * as path from "path";
 import * as util from "util";
 import EventEmitter = require('events');
 
-const xml = `
-  <store class="ag">
-  <books>
-  <zoo></zoo>
-  </books>
-  <foo>
-    <x>
-   </x>
-</foo>
-</store>
-`;
+/////////////////////////////////////////////////////////////////////////////////
 
 export const symbols = {
   fields: Symbol('@xml.js.fields'),
@@ -35,27 +25,66 @@ export class Node {
   
   constructor(parent: Node, name: string) {
     
-    this[symbols.fields] = {} as  { [key: string]: string };
-    this[symbols.parent] = parent;
-    this[symbols.name] = name;
+    // get / set with the define prop
+    
+    Object.defineProperty(this, symbols.fields, {
+      value: {},
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+    
+    Object.defineProperty(this, symbols.parent, {
+      value: parent,
+      writable: true,
+      enumerable: false,
+      configurable: true
+    });
+    
+    Object.defineProperty(this, symbols.name, {
+      value: name,
+      writable: true,
+      enumerable: false,
+      configurable: true
+    });
+    
+    Object.defineProperty(this, symbols.name, {
+      value: name,
+      writable: true,
+      enumerable: false,
+      configurable: true
+    });
+    
+    // this[symbols.fields] = {} as  { [key: string]: string };
+    // this[symbols.parent] = parent;
+    // this[symbols.name] = name;
     
   }
   
-  [symbols.toString](): string {
-    const v = Object.assign({}, this);
-    delete v[symbols.fields];
-    delete v[symbols.parent];
-    delete v[symbols.name];
-    return util.inspect(v);
-  };
+  // [symbols.toString](): string {
+  // const v = Object.assign({}, this);
+  // delete this[symbols.fields];
+  // delete this[symbols.parent];
+  // delete this[symbols.name];
+  // return util.inspect(this);
+  // return util.inspect(v);
   
-  toString(): string {
-    return this[symbols.toString]();
+  // };
+  
+  viewString() {
+    delete this[symbols.fields];
+    delete this[symbols.parent];
+    delete this[symbols.name];
+    return this;
   }
   
-  valueOf(): string {
-    return this[symbols.toString]();
-  }
+  // toString(): string {
+  //   return this[symbols.toString]();
+  // }
+  
+  // valueOf(): string {
+  //   return this[symbols.toString]();
+  // }
   
 }
 
@@ -212,14 +241,18 @@ export class XMLParser {
   }
   
   print() {
-    this.internalPrint(this.jsResult.root);
+    return this.internalPrint(this.jsResult.root);
   }
   
   internalPrint(v: Node) {
     const self = this;
+    const keys = Object.keys(v);
+    console.log('the keys:', keys);
+    
     Object.keys(v).forEach(function (k) {
+      console.log('the key:', k);
       console.log(v[k]);
-      self.internalPrint(v[k]);
+      // self.internalPrint(v[k]);
     });
   }
   

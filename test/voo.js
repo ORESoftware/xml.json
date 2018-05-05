@@ -1,4 +1,7 @@
-for (let x of '123') {
-    continue;
-    console.log('zoom');
-}
+const s = Symbol('foo');
+const v = {
+    [s]: 'bar'
+};
+console.log(v);
+delete v[s];
+console.log(v);
