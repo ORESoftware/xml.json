@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const path = require("path");
 const dist_1 = require("../dist");
+const fs = require("fs");
 const file = path.resolve(__dirname + '/assets/foo.xml');
-const p = new dist_1.XMLParser({ file, key: 'truck' });
+const p = fs.createReadStream(file).pipe(new dist_1.XMLParser({ key: 'truck' }));
 p.on('jschunk', function (obj) {
     console.log('jschunk:', obj);
 });

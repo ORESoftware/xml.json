@@ -1,10 +1,13 @@
 import path = require('path');
 import {XMLParser, symbols, XML} from "../dist";
 import {Node} from "../dist";
+import fs = require('fs');
 
 const file = path.resolve(__dirname + '/assets/foo.xml');
 
-const p = new XMLParser({file, key: 'truck'});
+// const p = new XMLParser({file, key: 'truck'});
+
+const p = fs.createReadStream(file).pipe(new XMLParser({key: 'truck'}));
 
 // const p = XML.parse(file);
 

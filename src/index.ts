@@ -172,188 +172,201 @@ export class XMLParser extends Transform {
     const file = this.file = opts.file || '';
     this.key = opts.key || '';
     
-    if (!path.isAbsolute(file)) {
+    if (file && !path.isAbsolute(file)) {
       throw new Error('xml file path must be absolute.')
     }
     
     // this.reader could be user passed or just `this` itself
     
-    this.reader = fs.createReadStream(file, 'utf8');
+    let reader = this as Readable;
+    
+    if (file) {
+      reader = fs.createReadStream(file, 'utf8');
+    }
+    
     this.currentNode = this.jsResult.root;
     const self = this;
     
-    this.reader.once('end', function () {
+    reader.once('end', function () {
       console.log('reading has ended.');
       setImmediate(function () {
         // console.log('inspection:',self.inspectValue());
         self.emitter.emit('result', self.jsResult.root);
         self.emit('result', self.jsResult.root);
       });
-      
     });
     
     let dataCount = 0;
     
-    this.reader.on('data', function (d) {
-      
+    reader.on('data', function (d: string ) {
       dataCount++;
       console.log('data count:', dataCount);
+      self.handleData(d);
+    });
+    
+  }
+  
+  _transform(chunk, enc, cb) {
+    this.handleData(chunk);
+    cb();
+  }
+  
+  handleData(d: string) {
+    
+    let index = 0;
+    let prevChar = '';
+    let nextNodeName = '';
+    let recordingFields = false;
+    let recordingNextNodeName = false;
+    let recordingValue = false;
+    let closingNode = false;
+    let fieldName = '';
+    let fieldValue = '';
+    let fields = {} as { [key: string]: string };
+    let nodeValue = '';
+    const self = this;
+    
+    for (let v of String(d)) {
       
-      let index = 0;
-      let prevChar = '';
-      let nextNodeName = '';
-      let recordingFields = false;
-      let recordingNextNodeName = false;
-      let recordingValue = false;
-      let closingNode = false;
-      let fieldName = '';
-      let fieldValue = '';
-      let fields = {} as { [key: string]: string };
-      let nodeValue = '';
+      const isWhiteSpace = String(v).trim() === '';
       
-      for (let v of String(d)) {
-        
-        const isWhiteSpace = String(v).trim() === '';
-        
-        if (isWhiteSpace && recordingNextNodeName) {
-          recordingNextNodeName = false;
-          recordingFields = true;
-        }
-        
-        if (isWhiteSpace && self.withinField === false) {
-          if (recordingValue) {
-            nodeValue += v;
-          }
-          continue;
-        }
-        
-        if (v === '"' && prevChar !== '\\' && self.withinField === false) {
-          self.withinField = true;
-        }
-        else if (v === '"' && prevChar !== '\\' && self.withinField === true) {
-          self.withinField = false;
-          fields[fieldName.slice(0, fieldName.length - 1)] = String(fieldValue).slice(1);
-          fieldName = '';
-          fieldValue = '';
-        }
-        
-        if (recordingFields && self.withinField === false) {
-          fieldName += v;
-        }
-        
-        if (recordingFields && self.withinField === true) {
-          fieldValue += v;
-        }
-        
-        if (prevChar === '<' && v === '/' && self.withinField === false) {
-          recordingValue = false;
-          // self.currentNode = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
-          self.currentNode[symbols.value] = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
-          nodeValue = '';
-        }
-        
-        if (prevChar === '<' && v !== '/' && self.withinField === false) {
-          recordingValue = false;
-          self.currentNode[symbols.value] = '';
-          nodeValue = '';
-          recordingNextNodeName = true;
-        }
-        
-        if (v !== '>' && recordingNextNodeName) {
-          nextNodeName += v;
-        }
-        
-        if (v === '>' && (recordingFields || recordingNextNodeName) && self.withinField === false) {
-          
-          recordingNextNodeName = false;
-          recordingFields = false;
-          recordingValue = true;
-          
-          let newNode = self.getNewNode(self.currentNode, nextNodeName);
-          newNode[symbols.fields] = fields;
-          
-          const x = self.currentNode[nextNodeName];
-          
-          // console.log('xxx:', x);
-          
-          if (x instanceof Map) {
-            x.set(newNode, newNode);
-          }
-          else if (x) {
-            let m = new Map() as MapWithFirst;
-            m.first = x;
-            m.set(x, x);
-            m.set(newNode, newNode);
-            self.currentNode[nextNodeName] = m;
-          }
-          else {
-            self.currentNode[nextNodeName] = newNode
-          }
-          
-          // if (Array.isArray(x)) {
-          //   x.push(newNode);
-          // }
-          // else if (x) {
-          //   self.currentNode[nextNodeName] = [x, newNode];
-          // }
-          // else {
-          //   self.currentNode[nextNodeName] = newNode;
-          // }
-          
-          // console.log('newNode parent:', newNode[symbols.parent][symbols.name]);
-          
-          // const a = self.currentNode.c[nextNodeName] = self.currentNode.c[nextNodeName] || [];
-          // newNode = {p: self.currentNode, c: {}, n: nextNodeName, v:[]};
-          // a.push(newNode);
-          
-          fields = {};
-          
-          nextNodeName = '';
-          self.currentNode = newNode;
-          console.log('new current node name is:', self.currentNode[symbols.name]);
-          debugger;
-        }
-        
-        if (closingNode === true && v === '>') {
-          // console.log('close node is now false');
-          closingNode = false;
-          let parent = self.currentNode[symbols.parent];
-          delete self.currentNode[symbols.parent];
-          
-          if (self.currentNode[symbols.value] &&
-            Object.keys(self.currentNode[symbols.fields]).length < 1 &&
-            Object.keys(self.currentNode).length < 1) {
-            // self.currentNode = self.currentNode[symbols.value]
-            
-            let z = parent[self.currentNode[symbols.name]];
-            if (z instanceof Map) {
-              z.set(z.first, z.first[symbols.value] || z.first);
-              z.set(self.currentNode, self.currentNode[symbols.value] || self.currentNode);
-            }
-            // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
-          }
-          
-          if (self.key === self.currentNode[symbols.name]) {
-            self.emit('jschunk', self.currentNode);
-          }
-          
-          self.currentNode = parent;
-        }
-        
-        if (v === '/' && self.withinField === false && prevChar === '<') {
-          // console.log('close node is now true');
-          closingNode = true;
-        }
-        
+      if (isWhiteSpace && recordingNextNodeName) {
+        recordingNextNodeName = false;
+        recordingFields = true;
+      }
+      
+      if (isWhiteSpace && self.withinField === false) {
         if (recordingValue) {
           nodeValue += v;
         }
-        
-        index++;
-        prevChar = v;
+        continue;
       }
-    });
-    
+      
+      if (v === '"' && prevChar !== '\\' && self.withinField === false) {
+        self.withinField = true;
+      }
+      else if (v === '"' && prevChar !== '\\' && self.withinField === true) {
+        self.withinField = false;
+        fields[fieldName.slice(0, fieldName.length - 1)] = String(fieldValue).slice(1);
+        fieldName = '';
+        fieldValue = '';
+      }
+      
+      if (recordingFields && self.withinField === false) {
+        fieldName += v;
+      }
+      
+      if (recordingFields && self.withinField === true) {
+        fieldValue += v;
+      }
+      
+      if (prevChar === '<' && v === '/' && self.withinField === false) {
+        recordingValue = false;
+        // self.currentNode = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
+        self.currentNode[symbols.value] = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
+        nodeValue = '';
+      }
+      
+      if (prevChar === '<' && v !== '/' && self.withinField === false) {
+        recordingValue = false;
+        self.currentNode[symbols.value] = '';
+        nodeValue = '';
+        recordingNextNodeName = true;
+      }
+      
+      if (v !== '>' && recordingNextNodeName) {
+        nextNodeName += v;
+      }
+      
+      if (v === '>' && (recordingFields || recordingNextNodeName) && self.withinField === false) {
+        
+        recordingNextNodeName = false;
+        recordingFields = false;
+        recordingValue = true;
+        
+        let newNode = self.getNewNode(self.currentNode, nextNodeName);
+        newNode[symbols.fields] = fields;
+        
+        const x = self.currentNode[nextNodeName];
+        
+        // console.log('xxx:', x);
+        
+        if (x instanceof Map) {
+          x.set(newNode, newNode);
+        }
+        else if (x) {
+          let m = new Map() as MapWithFirst;
+          m.first = x;
+          m.set(x, x);
+          m.set(newNode, newNode);
+          self.currentNode[nextNodeName] = m;
+        }
+        else {
+          self.currentNode[nextNodeName] = newNode
+        }
+        
+        // if (Array.isArray(x)) {
+        //   x.push(newNode);
+        // }
+        // else if (x) {
+        //   self.currentNode[nextNodeName] = [x, newNode];
+        // }
+        // else {
+        //   self.currentNode[nextNodeName] = newNode;
+        // }
+        
+        // console.log('newNode parent:', newNode[symbols.parent][symbols.name]);
+        
+        // const a = self.currentNode.c[nextNodeName] = self.currentNode.c[nextNodeName] || [];
+        // newNode = {p: self.currentNode, c: {}, n: nextNodeName, v:[]};
+        // a.push(newNode);
+        
+        fields = {};
+        
+        nextNodeName = '';
+        self.currentNode = newNode;
+        console.log('new current node name is:', self.currentNode[symbols.name]);
+        debugger;
+      }
+      
+      if (closingNode === true && v === '>') {
+        // console.log('close node is now false');
+        closingNode = false;
+        let parent = self.currentNode[symbols.parent];
+        delete self.currentNode[symbols.parent];
+        
+        if (self.currentNode[symbols.value] &&
+          Object.keys(self.currentNode[symbols.fields]).length < 1 &&
+          Object.keys(self.currentNode).length < 1) {
+          // self.currentNode = self.currentNode[symbols.value]
+          
+          let z = parent[self.currentNode[symbols.name]];
+          if (z instanceof Map) {
+            z.set(z.first, z.first[symbols.value] || z.first);
+            z.set(self.currentNode, self.currentNode[symbols.value] || self.currentNode);
+          }
+          // parent[self.currentNode[symbols.name]] = self.currentNode[symbols.value];
+        }
+        
+        if (self.key === self.currentNode[symbols.name]) {
+          self.emit('jschunk', self.currentNode);
+        }
+        
+        self.currentNode = parent;
+      }
+      
+      if (v === '/' && self.withinField === false && prevChar === '<') {
+        // console.log('close node is now true');
+        closingNode = true;
+      }
+      
+      if (recordingValue) {
+        nodeValue += v;
+      }
+      
+      index++;
+      prevChar = v;
+    }
   }
   
   print() {
