@@ -164,15 +164,21 @@ export class XMLParser extends Transform {
   reader: Readable;
   emitter = new EventEmitter();
   key = '';
+  index = 0;
+  prevChar = '';
+  nextNodeName = '';
+  recordingFields = false;
+  recordingNextNodeName = false;
+  recordingValue = false;
+  closingNode = false;
+  fieldName = '';
+  fieldValue = '';
+  fields = {} as { [key: string]: string };
+  nodeValue = '';
   
   constructor(opts?: XMLParserOpts, to?: TransformOptions) {
     
-    super((function () {
-      if (to && (typeof to !== 'object' || Array.isArray(to))) {
-        throw new Error('Transform stream options must be a plain object.');
-      }
-      return Object.assign({}, to || {}, {objectMode: true})
-    })());
+    super(Object.assign({}, to || {}, {objectMode: true}));
     
     opts = opts || {} as XMLParserOpts;
     const file = this.file = opts.file || '';
@@ -191,6 +197,7 @@ export class XMLParser extends Transform {
     }
     
     this.currentNode = this.jsResult.root;
+    
     const self = this;
     
     reader.once('end', function () {
@@ -198,6 +205,7 @@ export class XMLParser extends Transform {
       setImmediate(function () {
         // console.log('inspection:',self.inspectValue());
         self.emitter.emit('result', self.jsResult.root);
+        // self.push(self.jsResult.root); /// push it down the stream
         self.emit('result', self.jsResult.root);
       });
     });
@@ -219,82 +227,68 @@ export class XMLParser extends Transform {
   
   handleData(d: string) {
     
-    let index = 0;
-    let prevChar = '';
-    let nextNodeName = '';
-    let recordingFields = false;
-    let recordingNextNodeName = false;
-    let recordingValue = false;
-    let closingNode = false;
-    let fieldName = '';
-    let fieldValue = '';
-    let fields = {} as { [key: string]: string };
-    let nodeValue = '';
-    
     for (let v of String(d)) {
       
       const isWhiteSpace = String(v).trim() === '';
       
-      if (isWhiteSpace && recordingNextNodeName) {
-        recordingNextNodeName = false;
-        recordingFields = true;
+      if (isWhiteSpace && this.recordingNextNodeName) {
+        this.recordingNextNodeName = false;
+        this.recordingFields = true;
       }
       
       if (isWhiteSpace && this.withinField === false) {
-        if (recordingValue) {
-          nodeValue += v;
+        if (this.recordingValue) {
+          this.nodeValue += v;
         }
         continue;
       }
       
-      if (v === '"' && prevChar !== '\\' && this.withinField === false) {
+      if (v === '"' && this.prevChar !== '\\' && this.withinField === false) {
         this.withinField = true;
       }
-      else if (v === '"' && prevChar !== '\\' && this.withinField === true) {
+      else if (v === '"' && this.prevChar !== '\\' && this.withinField === true) {
         this.withinField = false;
-        fields[fieldName.slice(0, fieldName.length - 1)] = String(fieldValue).slice(1);
-        fieldName = '';
-        fieldValue = '';
+        this.fields[this.fieldName.slice(0, this.fieldName.length - 1)] = String(this.fieldValue).slice(1);
+        this.fieldName = '';
+        this.fieldValue = '';
       }
       
-      if (recordingFields && this.withinField === false) {
-        fieldName += v;
+      if (this.recordingFields && this.withinField === false) {
+        this.fieldName += v;
       }
       
-      if (recordingFields && this.withinField === true) {
-        fieldValue += v;
+      if (this.recordingFields && this.withinField === true) {
+        this.fieldValue += v;
       }
       
-      if (prevChar === '<' && v === '/' && this.withinField === false) {
-        recordingValue = false;
+      if (this.prevChar === '<' && v === '/' && this.withinField === false) {
+        this.recordingValue = false;
         // this.currentNode = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
-        this.currentNode[symbols.value] = String(nodeValue.slice(1, nodeValue.length - 1)).trim();
-        nodeValue = '';
+        this.currentNode[symbols.value] = String(this.nodeValue.slice(1, this.nodeValue.length - 1)).trim();
+        this.nodeValue = '';
       }
       
-      if (prevChar === '<' && v !== '/' && this.withinField === false) {
-        recordingValue = false;
+      if (this.prevChar === '<' && v !== '/' && this.withinField === false) {
+        this.recordingValue = false;
         this.currentNode[symbols.value] = '';
-        nodeValue = '';
-        recordingNextNodeName = true;
+        this.nodeValue = '';
+        this.recordingNextNodeName = true;
       }
       
-      if (v !== '>' && recordingNextNodeName) {
-        nextNodeName += v;
+      if (v !== '>' && this.recordingNextNodeName) {
+        this.nextNodeName += v;
       }
       
-      if (v === '>' && (recordingFields || recordingNextNodeName) && this.withinField === false) {
+      if (v === '>' && (this.recordingFields || this.recordingNextNodeName) && this.withinField === false) {
         
-        recordingNextNodeName = false;
-        recordingFields = false;
-        recordingValue = true;
+        this.recordingNextNodeName = false;
+        this.recordingFields = false;
+        this.recordingValue = true;
         
-        let newNode = this.getNewNode(this.currentNode, nextNodeName);
-        newNode[symbols.fields] = fields;
+        let newNode = this.getNewNode(this.currentNode, this.nextNodeName);
+        newNode[symbols.fields] = this.fields;
         
-        const x = this.currentNode[nextNodeName];
-        
-        // console.log('xxx:', x);
+        const x = this.currentNode[this.nextNodeName];
         
         if (x instanceof Map) {
           x.set(newNode, newNode);
@@ -304,10 +298,10 @@ export class XMLParser extends Transform {
           m.first = x;
           m.set(x, x);
           m.set(newNode, newNode);
-          this.currentNode[nextNodeName] = m;
+          this.currentNode[this.nextNodeName] = m;
         }
         else {
-          this.currentNode[nextNodeName] = newNode
+          this.currentNode[this.nextNodeName] = newNode
         }
         
         // if (Array.isArray(x)) {
@@ -320,15 +314,15 @@ export class XMLParser extends Transform {
         //   this.currentNode[nextNodeName] = newNode;
         // }
         
-        fields = {};
+        this.fields = {};
         
-        nextNodeName = '';
+        this.nextNodeName = '';
         this.currentNode = newNode;
       }
       
-      if (closingNode === true && v === '>') {
+      if (this.closingNode === true && v === '>') {
         // console.log('close node is now false');
-        closingNode = false;
+        this.closingNode = false;
         let parent = this.currentNode[symbols.parent];
         delete this.currentNode[symbols.parent];
         
@@ -351,18 +345,20 @@ export class XMLParser extends Transform {
         this.currentNode = parent;
       }
       
-      if (v === '/' && this.withinField === false && prevChar === '<') {
+      if (v === '/' && this.withinField === false && this.prevChar === '<') {
         // console.log('close node is now true');
-        closingNode = true;
+        this.closingNode = true;
       }
       
-      if (recordingValue) {
-        nodeValue += v;
+      if (this.recordingValue) {
+        this.nodeValue += v;
       }
       
-      index++;
-      prevChar = v;
+      this.index++;
+      this.prevChar = v;
     }
+    
+    // this.push(this.jsResult.root); /// push it down the stream
   }
   
   print() {
